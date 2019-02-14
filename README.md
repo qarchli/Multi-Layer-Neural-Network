@@ -12,7 +12,7 @@ Demo notebook is to be found [here](https://github.com/qarchli/Multi-Layer-Neura
 ### Regularization ###
 The Multi-Layer neural network can be regularized to reduce overfitting, using methods such as:
   - L2 Regularization, by specifying the regularization parameter λ (lambd in the constructor).
-  - Dropout, by specifying the probability of keeping a neuron activated (keep_prob in the constructor).
+  - Dropout, by specifying the probability of keeping a neuron activated (keep_prob in the constructor). *
 
 Demo notebook is to be found [here](https://github.com/qarchli/Multi-Layer-Neural-Network/blob/master/Regularization%20DEMO.ipynb).
 
