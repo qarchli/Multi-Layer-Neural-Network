@@ -19,9 +19,9 @@ Demo notebook is to be found [here](https://github.com/qarchli/Multi-Layer-Neura
 ### Optimization methods ###
 In the learning phase, the MLNN optimal parameters can be learnt by using:
   - Batch, Mini-Batch or Stochastic gradient descent, by specifying the mini-batch size parameter in the constructor.<br>
-  Combined with:
-  - Momentum, with hyperparameter β (beta1 in the constructor), or
-  - RMSProp, with hyperparameter β (beta1 in the constructor), or
+  Combined with advanced parameter update methods such as:
+  - Momentum, with hyperparameter β (beta1 in the constructor)
+  - RMSProp, with hyperparameter β (beta1 in the constructor)
   - Adam, with hyperparameters β1 and β2 (beta1 and beta2 in the constructor).
 
 Demo notebook is to be found [here](https://github.com/qarchli/Multi-Layer-Neural-Network/blob/master/Optimization%20methods%20DEMO.ipynb).
