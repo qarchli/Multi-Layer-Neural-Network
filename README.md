@@ -1,5 +1,6 @@
 # Multi-Layer-Neural-Network
 This is an implementation from scratch of a deep feedforward Neural Network using Python. 
+
 Note: This is a work in progress and things will be added gradually. It is not intended for production, just for learning purposes.
 
 ### Weights initialization ###
