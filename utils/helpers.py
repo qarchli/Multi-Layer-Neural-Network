@@ -101,3 +101,25 @@ def grad_checking(dtheta_backprop, dtheta_approx, epsilon=1e-07):
               str(difference) + "\033[0m")
 
     return difference
+
+
+def one_hot_encoding(y, classes):
+    """
+    Performs one hot encoding for the y vector, depending on the C classes.
+    --
+    Arguments:
+        y: true labels vector to be encoded.
+    Returns:
+        encoded_y: Numpy array of the one hot encoded vector y.
+    """
+    m = y.shape[1]  # number of examples
+    C = len(classes)  # number of classes
+
+    y_enc = np.zeros((C, m))
+
+    for i in range(m):  # looping over training examples
+        temp = np.zeros(C)
+        temp[y[:, i]] = 1
+        y_enc[:, i] = temp
+
+    return y_enc

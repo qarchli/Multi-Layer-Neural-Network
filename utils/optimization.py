@@ -16,6 +16,7 @@ def get_random_minibatches(X, Y, minibatch_size=64):
     """
 
     m = X.shape[1]  # total number of examples
+
     minibatches = []
 
     remaining = False  # will the dataset split be even or not

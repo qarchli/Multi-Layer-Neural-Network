@@ -47,3 +47,19 @@ def tanh_p(z):
     Computes the gradient of the tanh function for a given numpy array.
     """
     return (1 - np.tanh(z)**2)
+
+
+def softmax(x):
+    """
+    Computes the softmax activation function for a given numpy array.
+    """
+    shiftx = x - np.max(x)
+    return (np.exp(shiftx)) / np.sum(np.exp(shiftx), axis=0)
+
+
+def softmax_p(z):
+    """
+    Computes the gradient of the softmax function for a given numpy array.
+    """
+    # return softmax(z) * (1 - softmax(z))
+    return np.diagflat(z) - np.dot(z, z.T)
