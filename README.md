@@ -3,6 +3,9 @@ This is an implementation from scratch of a deep feedforward Neural Network usin
 
 Note: This is a work in progress and things will be added gradually. It is not intended for production, just for learning purposes.
 
+### Binary & Multiclass classification ###
+Demo notebook is to be found [here](https://github.com/qarchli/Multi-Layer-Neural-Network/blob/master/Binary%20and%20Multiclass%20classification%20DEMO.ipynb).
+
 ### Weights initialization ###
 The Multi-Layer neural network can support several initialization methods such as:
   - Random initialization.
