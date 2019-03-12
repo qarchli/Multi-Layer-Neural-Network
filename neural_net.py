@@ -12,17 +12,16 @@ class MLNN:
 
     __layer_tracker = 0  # to track the current layer
 
-    def __init__(self, layers_dims, init_method, activations, lambd, optimizer_name, learning_rate, num_epochs, beta1=0.9, beta2=0.999, minibatch_size=64, track=False):
+    def __init__(self, layers_dims, init_method, activation, lambd, optimizer_name, learning_rate, num_epochs, beta1=0.9, beta2=0.999, minibatch_size=64, track=False):
         """
         Initializes a Muli-Layer Neural Network.
         ---
         Arguments:
-            layers_dims: list containing the dimension of each layer of the
-                        Neural Net.
+            layers_dims: list containing the dimension of each layer of the Neural Net.
             init_method: flag refering to the init method to use e.g.
                         ('xavier', 'he')
-            activations: list containing the activation functions to be used
-                        in the hidden layers and the output layer respectively. e.g. ('relu', 'sigmoid').
+            activation: string. activation for the hidden layers.
+                        ('relu', 'tanh', 'sigmoid')
             lambd: L2 regularization parameter.
             optimizer_name: the optimizer to use in the parameters' update
                         step. e.g.('gd', 'momentum', 'rmsprop', 'adam') for standard gradient descent, momentum, rmsprop and adam, respectively.
@@ -38,26 +37,35 @@ class MLNN:
             MLNN: instance of MLNN.
         """
         self.__layers_dims = layers_dims
+
+        # boolean for the classification type
+        if self.__layers_dims[-1] == 1:
+            self.__binary_class = True
+            self.__activations = [activation, 'sigmoid']
+        else:
+            self.__binary_class = False
+            self.__activations = [activation, 'softmax']
+
         self.__init_method = init_method
-        self.__activations = activations
         self.__lambd = lambd
+        self.__optimizer_name = optimizer_name
+        self.__optimizer = None
         self.__learning_rate = learning_rate
         self.__num_epochs = num_epochs
         self.__beta1 = beta1
         self.__beta2 = beta2
         self.__minibatch_size = minibatch_size
         self.__track = track
-        # Initializing the parameters
-        self.__parameters = self.__initialize_parameters(init_method)
-        # Initializing the optimizer
-        self.__optimizer = self.__initialize_optimizer(optimizer_name)
+        self.__parameters = None
         self.__costs = None
+
+        MLNN.__layer_tracker = 0  # reinit layer tracker
 
     # ========================================================================
     # Initialization
     # ========================================================================
 
-    def __initialize_parameters(self, init_method):
+    def __initialize_parameters(self):
         """
         Initializes the NN parameters (W and b) for every layer, depending on the required method.
         ---
@@ -73,25 +81,25 @@ class MLNN:
 
         initial_parameters = {}
 
-        if init_method == 'xavier':
+        if self.__init_method == 'xavier':
             initial_parameters = init_methods.initialize_parameters_xavier(
                 self.__layers_dims)
-        elif init_method == 'he':
+        elif self.__init_method == 'he':
             initial_parameters = init_methods.initialize_parameters_he(
                 self.__layers_dims)
-        elif init_method == 'random':
+        elif self.__init_method == 'random':
             initial_parameters = init_methods.initialize_parameters_random(
                 self.__layers_dims)
-        elif init_method == 'zeros':
+        elif self.__init_method == 'zeros':
             initial_parameters = init_methods.initialize_parameters_zeros(
                 self.__layers_dims)
         else:
             raise ValueError(
                 'init_method must be either "zeros","random","he" or "xavier"')
 
-        return initial_parameters
+        self.__parameters = initial_parameters
 
-    def __initialize_optimizer(self, optimizer_name):
+    def __initialize_optimizer(self):
         """
         Initializes the NN optimizer depending on the required algorithm.
         ---
@@ -107,20 +115,20 @@ class MLNN:
         """
         optimizer = {}
 
-        if optimizer_name == 'gd':
+        if self.__optimizer_name == 'gd':
             optimizer['name'] = 'gd'
 
-        elif optimizer_name == 'momentum':
+        elif self.__optimizer_name == 'momentum':
             optimizer['name'] = 'momentum'
             optimizer['v'] = optimization.initialize_momentum(
                 self.__parameters)
 
-        elif optimizer_name == 'rmsprop':
+        elif self.__optimizer_name == 'rmsprop':
             optimizer['name'] = 'rmsprop'
             optimizer['s'] = optimization.initialize_rmsprop(
                 self.__parameters)
 
-        elif optimizer_name == 'adam':
+        elif self.__optimizer_name == 'adam':
             optimizer['name'] = 'adam'
             v, s, t = optimization.initialize_adam(self.__parameters)
             optimizer['v'] = v
@@ -131,7 +139,7 @@ class MLNN:
             raise ValueError(
                 'optimizer_name must be either "gd","momentum","rmsprop" or "adam"')
 
-        return optimizer
+        self.__optimizer = optimizer
 
     # ========================================================================
     # Forward Propagation
@@ -162,7 +170,8 @@ class MLNN:
         dispatcher = {
             'sigmoid': activation_functions.sigmoid,
             'relu': activation_functions.relu,
-            'tanh': activation_functions.tanh
+            'tanh': activation_functions.tanh,
+            'softmax': activation_functions.softmax
         }
         activation = dispatcher[activation_current]
 
@@ -207,7 +216,7 @@ class MLNN:
             A_prev, WL, bL, self.__activations[1])
         deep_forward_caches.append(cacheL)
 
-        assert (AL.shape == (1, m))
+        assert (AL.shape == (self.__layers_dims[L], m))
         return (AL, deep_forward_caches)
 
     # ========================================================================
@@ -215,33 +224,42 @@ class MLNN:
     # ========================================================================
 
     def __one_layer_back_propagation(self, dA_current, cache_current,
-                                     activation_current):
+                                     activation_current, *args):
         """
         Performs back propagation for one layer only, on all the training examples.
         ---
         Arguments:
-         dA_current: gradient of the current layer activations from the
-                    previous layer. Numpy array of shape (# units of the previous layer, # of examples)
+         dA_current: -gradient of the current layer activations from the
+                    previous layer. Numpy array of shape (# units of the previous layer, # of examples).
+                    - =None in the case of softmax regression. The function waits for dZ_current instead. (in *args).
         cache_current: cache from forward prop on the current layer.
         activation_current: String, the activation function of the current
                     layer. e.g. ('relu', 'sigmoid', 'tanh')
+        args: dZ_current in the case of softmax regression.
         Returns:
             dA_prev: the output of backprop on the current layer. numpy array of size (# units of previous layer, 1)
         """
         if self.__track:
             print('I\'m in layer {} moving backward.'.format(MLNN.__layer_tracker))
 
-        n, m = dA_current.shape
         A_prev, Z_current, W_current = cache_current
 
-        dispatcher = {
-            'sigmoid': activation_functions.sigmoid_p,
-            'relu': activation_functions.relu_p,
-            'tanh': activation_functions.tanh_p
-        }
-        activation_p = dispatcher[activation_current]
+        # selecting the activation function
 
-        dZ_current = dA_current * activation_p(Z_current)
+        # the case of softmax activation
+        if activation_current == 'softmax':
+            dZ_current = args[0]
+            n, m = dZ_current.shape
+        else:
+            dispatcher = {
+                'sigmoid': activation_functions.sigmoid_p,
+                'relu': activation_functions.relu_p,
+                'tanh': activation_functions.tanh_p,
+            }
+            activation_p = dispatcher[activation_current]
+            dZ_current = dA_current * activation_p(Z_current)
+            n, m = dA_current.shape
+
         dW_current = 1. / m * \
             np.dot(dZ_current, A_prev.T) + self.__lambd / m * W_current
         db_current = 1. / m * np.sum(dZ_current, axis=1, keepdims=True)
@@ -271,6 +289,7 @@ class MLNN:
         L = len(deep_forward_caches)  # total number of layers
         n, m = AL.shape  # number of training examples
         Y = Y.reshape(AL.shape)
+        # C = Y.shape[0]
         grads = {}
 
         def write_grads(dA, dW, db, layer):
@@ -282,11 +301,20 @@ class MLNN:
             grads['db' + str(layer)] = db
 
         # Performing backprop on the last layer
-        dA_current = -Y / AL + (1 - Y) / (
-            1 - AL)  # = dAL (backprop initialization)
         cache_current = deep_forward_caches[L - 1]
-        dA_prev, dW_current, db_current = self.__one_layer_back_propagation(
-            dA_current, cache_current, self.__activations[1])
+
+        if self.__binary_class:
+            # (binary class backprop initialization)
+            dA_current = -Y / AL + (1 - Y) / (
+                1 - AL)  # = dAL
+            dA_prev, dW_current, db_current = self.__one_layer_back_propagation(
+                dA_current, cache_current, self.__activations[1])
+        else:
+            # (multi class backprop initialization)
+            dA_current = None
+            dZ_current = AL - Y
+            dA_prev, dW_current, db_current = self.__one_layer_back_propagation(
+                dA_current, cache_current, self.__activations[1], dZ_current)
 
         write_grads(dA_current, dW_current, db_current, L)
 
@@ -366,6 +394,17 @@ class MLNN:
                 computed costs.
         """
 
+        # Initialization
+        # Initializing the parameters
+        self.__initialize_parameters()
+        # Initializing the optimizer
+        self.__initialize_optimizer()
+
+        # Check minibatch_size validity
+        m = X.shape[1]
+        if m < self.__minibatch_size:
+            raise ValueError('minibatch_size ({}) greater than total number of training examples ({}).'.format(
+                self.__minibatch_size, m))
         # Array to track the costs
         costs = []
 
@@ -380,9 +419,15 @@ class MLNN:
                 minibatch_AL, deep_forward_caches = self.__deep_forward_propagation(
                     minibatch_X)
 
-                # Computing the cost including L2 Regularization
-                minibatch_cost = performance.compute_cost(
-                    minibatch_Y, minibatch_AL, self.__parameters, self.__lambd)
+                # Computing the cost depending on the classification type (binary or multi-class)
+                if self.__binary_class:
+                    minibatch_cost = performance.compute_cost(
+                        minibatch_Y, minibatch_AL, self.__parameters, self.__lambd)
+                else:
+                    # Extracting logits of the last layer
+                    minibatch_ZL = deep_forward_caches[-1][1]
+                    minibatch_cost = performance.compute_cost(
+                        minibatch_Y, minibatch_AL, self.__parameters, self.__lambd, minibatch_ZL)
 
                 # Performing backprop on the given minibatch
                 minibatch_grads = self.__deep_back_propagation(
@@ -397,6 +442,8 @@ class MLNN:
             # if num_epochs are greater than 1000, save costs each 100 epochs
             elif epoch % 100 == 0:
                 costs.append(minibatch_cost)
+
+            MLNN.__layer_tracker = 0  # reinit layer tracker
 
         # Adding the costs to the MLNN params
         self.__costs = costs
@@ -421,10 +468,14 @@ class MLNN:
         """
 
         AL, _ = self.__deep_forward_propagation(X)  # Vector of probabilities
+        MLNN.__layer_tracker = 0  # reinit layer tracker
+
+        if not self.__binary_class:
+            return np.atleast_2d(AL.argmax(axis=0))
 
         predictions = (AL >= threshold)
 
-        return (predictions.astype(int))
+        return (predictions).astype(int)
 
     # ========================================================================
     # Getting the params and costs
@@ -437,6 +488,7 @@ class MLNN:
         """
         params = {
             'layers_dims': self.__layers_dims,
+            'binary classification': self.__binary_class,
             'init_method': self.__init_method,
             'activations': self.__activations,
             'lambda': self.__lambd,
@@ -487,18 +539,30 @@ class MLNN:
                     thetaminus, self.__layers_dims, sizes)
 
                 self.__parameters = thetaplus_dict
-                AL, _ = self.__deep_forward_propagation(
-                    X)  # Vector of probabilities
+                AL, deep_forward_caches = self.__deep_forward_propagation(
+                    X)
 
-                J_plus = performance.compute_cost(
-                    Y, AL, thetaplus_dict, self.__lambd)
+                if self.__binary_class:
+                    J_plus = performance.compute_cost(
+                        Y, AL, thetaplus_dict, self.__lambd)
+                else:
+                    # Extracting logits of the last layer
+                    ZL = deep_forward_caches[-1][1]
+                    J_plus = performance.compute_cost(
+                        Y, AL, self.__parameters, self.__lambd, ZL)
 
                 self.__parameters = thetaminus_dict
-                AL, _ = self.__deep_forward_propagation(
-                    X)  # Vector of probabilities
 
-                J_minus = performance.compute_cost(
-                    Y, AL, thetaminus_dict, self.__lambd)
+                AL, deep_forward_caches = self.__deep_forward_propagation(
+                    X)
+                if self.__binary_class:
+                    J_minus = performance.compute_cost(
+                        Y, AL, thetaminus_dict, self.__lambd)
+                else:
+                    # Extracting logits of the last layer
+                    ZL = deep_forward_caches[-1][1]
+                    J_minus = performance.compute_cost(
+                        Y, AL, self.__parameters, self.__lambd, ZL)
 
                 dtheta_approx.append(
                     (J_plus - J_minus) / (2 * epsilon))
