@@ -7,7 +7,7 @@ Note: This is a work in progress and things will be added gradually. It is not i
 The Multi-Layer neural network can support several initialization methods such as:
   - Random initialization.
   - Xavier initialization.
-  - He-et-Al. initialization.
+  - He initialization.
 
 Demo notebook is to be found [here](https://github.com/qarchli/Multi-Layer-Neural-Network/blob/master/Initialization%20DEMO.ipynb).
 
